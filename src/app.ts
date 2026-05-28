@@ -15,7 +15,28 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 const authController = new AuthController();
 
-app.get('/auth/tiendanube/callback', authController.handleCallback.bind(authController));
+// Callbacks (Cuando regresan de autorizar)
+app.get('/auth/tiendanube/callback', authController.handleTiendanubeCallback.bind(authController));
+app.get('/auth/mercadolibre/callback', authController.handleMercadoLibreCallback.bind(authController));
+
+// Rutas para iniciar el flujo de autenticación desde el frontend
+app.get('/api/auth/tiendanube', (req, res) => {
+  const clientId = process.env.TIENDANUBE_CLIENT_ID;
+  if (!clientId || clientId.includes('pega_tu')) return res.status(400).send('Falta TIENDANUBE_CLIENT_ID en Render');
+  const redirectUrl = `https://www.tiendanube.com/apps/${clientId}/authorize`;
+  res.redirect(redirectUrl);
+});
+
+app.get('/api/auth/mercadolibre', (req, res) => {
+  const clientId = process.env.ML_CLIENT_ID;
+  if (!clientId || clientId.includes('pega_tu')) return res.status(400).send('Falta ML_CLIENT_ID en Render');
+  
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+  const host = req.headers.host;
+  const redirectUri = `${protocol}://${host}/auth/mercadolibre/callback`;
+  const redirectUrl = `https://auth.mercadolibre.com.ar/authorization?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}`;
+  res.redirect(redirectUrl);
+});
 
 // Example endpoint to test the service
 app.get('/api/test-products', async (req, res) => {

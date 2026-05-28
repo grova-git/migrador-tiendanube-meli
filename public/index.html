@@ -32,6 +32,27 @@
       const [migrationStatus, setMigrationStatus] = useState('idle');
       const [progress, setProgress] = useState({ current: 0, total: 350 });
 
+      // Leer los parámetros de la URL para ver si volvimos de OAuth con éxito
+      useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        // Comprobar si hay flags de éxito en la URL y actualizar estado
+        if (urlParams.get('tn_success') === 'true' || localStorage.getItem('tn_connected')) {
+          setTnConnected(true);
+          localStorage.setItem('tn_connected', 'true');
+        }
+        
+        if (urlParams.get('ml_success') === 'true' || localStorage.getItem('ml_connected')) {
+          setMlConnected(true);
+          localStorage.setItem('ml_connected', 'true');
+        }
+
+        // Limpiar URL si hay errores
+        if (urlParams.get('error')) {
+          alert('Hubo un error de autenticación: ' + urlParams.get('error'));
+        }
+      }, []);
+
       // Polling effect
       useEffect(() => {
         let interval;
@@ -92,7 +113,7 @@
                 </div>
                 <h2 className="text-xl font-bold mb-4">Tiendanube</h2>
                 <button 
-                  onClick={() => setTnConnected(true)}
+                  onClick={() => window.location.href = '/api/auth/tiendanube'}
                   disabled={tnConnected}
                   id="btn-tiendanube"
                   className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
@@ -111,7 +132,7 @@
                 </div>
                 <h2 className="text-xl font-bold mb-4">Mercado Libre</h2>
                 <button 
-                  onClick={() => setMlConnected(true)}
+                  onClick={() => window.location.href = '/api/auth/mercadolibre'}
                   disabled={mlConnected}
                   id="btn-mercadolibre"
                   className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
