@@ -137,9 +137,18 @@ app.post('/api/start-migration', async (req, res) => {
     // 3. Publicar en ML (con progreso real en base a los lotes)
     const mlService = new MercadoLibreService(mlToken);
     
-    await mlService.publishBatch(mappedCatalog.products, (currentProgress) => {
+    const report = await mlService.publishBatch(mappedCatalog.products, (currentProgress) => {
       migrationState.current = currentProgress;
     });
+
+    console.log('\n================ RESUMEN DE MIGRACIÓN ================');
+    console.log(`✅ Exitosos: ${report.successful.length}`);
+    console.log(`❌ Fallidos: ${report.failed.length}`);
+    if (report.failed.length > 0) {
+      console.log('Detalle de errores de Mercado Libre:');
+      report.failed.forEach(f => console.log(`- ${f.title}: ${f.error}`));
+    }
+    console.log('======================================================\n');
 
     migrationState.status = 'completed';
     console.log('Migración finalizada con éxito.');
