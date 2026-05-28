@@ -2,9 +2,10 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
-import { AuthController } from './controllers/auth.controller';
+import { AuthController, mockDatabase } from './controllers/auth.controller';
 import { MercadoLibreMapper } from './services/mercadolibre.mapper';
 import { MercadoLibreService } from './services/mercadolibre.service';
+import { TiendanubeService } from './services/tiendanube.service';
 
 dotenv.config();
 
@@ -97,29 +98,55 @@ let migrationState = {
   current: 0
 };
 
-app.post('/api/start-migration', (req, res) => {
+app.post('/api/start-migration', async (req, res) => {
   if (migrationState.status === 'running') {
     return res.status(400).json({ error: 'Migration already in progress' });
   }
   
-  const { mode } = req.body;
+  const { tiendanubeToken, tiendanubeStoreId, mlToken } = mockDatabase;
+
+  if (!tiendanubeToken || !tiendanubeStoreId || !mlToken) {
+    return res.status(401).json({ error: 'Faltan credenciales de conexión en la sesión.' });
+  }
+
+  // Responder inmediatamente al frontend para liberar el request
+  res.json({ message: 'Migration started' });
+
   migrationState = {
     status: 'running',
-    total: 350, // mock total
+    total: 0, 
     current: 0
   };
 
-  res.json({ message: 'Migration started' });
+  try {
+    // 1. Extraer de Tiendanube
+    const tnService = new TiendanubeService(tiendanubeToken, tiendanubeStoreId, 'MigradorSaaS', 'test@test.com');
+    const customProducts = await tnService.getProducts();
+    
+    migrationState.total = customProducts.length;
 
-  // Mock progression
-  const interval = setInterval(() => {
-    migrationState.current += 15;
-    if (migrationState.current >= migrationState.total) {
-      migrationState.current = migrationState.total;
+    if (customProducts.length === 0) {
       migrationState.status = 'completed';
-      clearInterval(interval);
+      return;
     }
-  }, 250);
+
+    // 2. Mapear al formato ML
+    const mapper = new MercadoLibreMapper();
+    const mappedCatalog = mapper.mapCatalog(customProducts);
+
+    // 3. Publicar en ML (con progreso real en base a los lotes)
+    const mlService = new MercadoLibreService(mlToken);
+    
+    await mlService.publishBatch(mappedCatalog.products, (currentProgress) => {
+      migrationState.current = currentProgress;
+    });
+
+    migrationState.status = 'completed';
+    console.log('Migración finalizada con éxito.');
+  } catch (error) {
+    console.error('Error durante la migración real:', error);
+    migrationState.status = 'error';
+  }
 });
 
 app.get('/api/progress', (req, res) => {

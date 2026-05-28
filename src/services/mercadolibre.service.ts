@@ -25,7 +25,7 @@ export class MercadoLibreService {
     this.listingTypeId = 'gold_special';
   }
 
-  async publishBatch(products: MercadoLibreProduct[]): Promise<PublishReport> {
+  async publishBatch(products: MercadoLibreProduct[], onProgress?: (current: number) => void): Promise<PublishReport> {
     const report: PublishReport = {
       successful: [],
       failed: [],
@@ -61,6 +61,12 @@ export class MercadoLibreService {
           });
         }
       });
+
+      // Actualizar el progreso después de procesar un lote
+      if (onProgress) {
+        const currentCount = Math.min(i + batchSize, products.length);
+        onProgress(currentCount);
+      }
 
       // Wait before the next batch if there are more products
       if (i + batchSize < products.length) {
