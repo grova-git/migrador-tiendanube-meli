@@ -31,7 +31,7 @@ export class MercadoLibreMapper {
   public mapCatalog(products: CustomProduct[]): MapperResult {
     let titles_trimmed = 0;
 
-    const mappedProducts = products.map(product => {
+    const mappedProducts = products.flatMap(product => {
       // 1. Trimming titles
       let originalTitle = product.titulo || '';
       let finalTitle = originalTitle;
@@ -42,49 +42,49 @@ export class MercadoLibreMapper {
 
       // 2. Description clean up
       const cleanDescription = this.cleanDescriptionForML(product.descripcion || '');
+      const pictures = this.processPictures(product.imagenes || []);
 
-      // 3. Mapping Variations
-      let variations: MercadoLibreVariation[] | undefined = undefined;
-      
+      // 3. Mapping Variations to User Products (Flattening)
       if (product.variantes && product.variantes.length > 0) {
-        variations = product.variantes.map(v => {
-          const combinations = [];
+        return product.variantes.map(v => {
+          const varAttributes = [
+             { id: 'SELLER_SKU', name: 'SKU', value_name: String(v.sku || product.id_original) }
+          ];
+          
+          let varTitle = originalTitle;
           if (v.color) {
-            combinations.push({ id: 'COLOR', name: 'Color', value_name: v.color });
+            varAttributes.push({ id: 'COLOR', name: 'Color', value_name: v.color });
+            varTitle += ` ${v.color}`;
           }
           if (v.talle) {
-            combinations.push({ id: 'SIZE', name: 'Talle', value_name: v.talle });
+            varAttributes.push({ id: 'SIZE', name: 'Talle', value_name: v.talle });
+            varTitle += ` ${v.talle}`;
           }
-          
+
           return {
+            title: this.trimTitleIntelligently(varTitle, 60),
+            description: { plain_text: cleanDescription },
             price: product.precio,
             available_quantity: v.stock,
-            attribute_combinations: combinations,
-            attributes: [
-              { id: 'SELLER_SKU', name: 'SKU', value_name: v.sku }
-            ]
+            pictures: pictures,
+            attributes: varAttributes,
+            family_name: finalTitle
           };
         });
       }
 
-      const mlProduct: MercadoLibreProduct = {
+      // Si no tiene variantes, lo mapea directo
+      return [{
         title: finalTitle,
         description: { plain_text: cleanDescription },
         price: product.precio,
         available_quantity: product.stock,
-        pictures: this.processPictures(product.imagenes || []),
+        pictures: pictures,
         attributes: [
            { id: 'SELLER_SKU', name: 'SKU', value_name: String(product.id_original) }
         ],
-      };
-
-      if (variations && variations.length > 0) {
-        mlProduct.variations = variations;
-        // La API de moda/catálogo (ej: MLA1430) exige family_name en la raíz si hay variantes
-        mlProduct.family_name = finalTitle;
-      }
-
-      return mlProduct;
+        family_name: finalTitle
+      }];
     });
 
     return {
