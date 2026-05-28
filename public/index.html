@@ -30,7 +30,7 @@
       const [mode, setMode] = useState('all');
       
       const [migrationStatus, setMigrationStatus] = useState('idle');
-      const [progress, setProgress] = useState({ current: 0, total: 350 });
+      const [progress, setProgress] = useState({ current: 0, total: 0 }); // Empezamos en 0
 
       // Leer los parámetros de la URL para ver si volvimos de OAuth con éxito
       useEffect(() => {
@@ -66,6 +66,10 @@
               if (data.status === 'completed') {
                 setMigrationStatus('completed');
                 clearInterval(interval);
+              } else if (data.status === 'error') {
+                alert('La migración falló en el servidor. Revisa los logs.');
+                setMigrationStatus('idle');
+                clearInterval(interval);
               }
             } catch (err) {
               console.error('Error fetching progress:', err);
@@ -82,11 +86,21 @@
         }
         try {
           setMigrationStatus('running');
-          await fetch('/api/start-migration', {
+          const res = await fetch('/api/start-migration', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ mode })
           });
+          
+          if (!res.ok) {
+             const errData = await res.json();
+             alert('Error: ' + errData.error + '.\nEsto ocurre porque el servidor se reinició y borró los tokens de memoria. Por favor vuelve a conectar.');
+             setMigrationStatus('idle');
+             localStorage.removeItem('tn_connected');
+             localStorage.removeItem('ml_connected');
+             setTnConnected(false);
+             setMlConnected(false);
+          }
         } catch (err) {
           console.error(err);
           setMigrationStatus('idle');
