@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Migración de Catálogo SaaS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    /* Custom Animations for modern look */
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .7; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen font-sans">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      const [tnConnected, setTnConnected] = useState(false);
+      const [mlConnected, setMlConnected] = useState(false);
+      const [mode, setMode] = useState('all');
+      
+      const [migrationStatus, setMigrationStatus] = useState('idle');
+      const [progress, setProgress] = useState({ current: 0, total: 350 });
+
+      // Polling effect
+      useEffect(() => {
+        let interval;
+        if (migrationStatus === 'running') {
+          interval = setInterval(async () => {
+            try {
+              const res = await fetch('/api/progress');
+              const data = await res.json();
+              setProgress({ current: data.current, total: data.total });
+              
+              if (data.status === 'completed') {
+                setMigrationStatus('completed');
+                clearInterval(interval);
+              }
+            } catch (err) {
+              console.error('Error fetching progress:', err);
+            }
+          }, 300);
+        }
+        return () => clearInterval(interval);
+      }, [migrationStatus]);
+
+      const startMigration = async () => {
+        if (!tnConnected || !mlConnected) {
+          alert("Debes conectar ambas plataformas primero.");
+          return;
+        }
+        try {
+          setMigrationStatus('running');
+          await fetch('/api/start-migration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode })
+          });
+        } catch (err) {
+          console.error(err);
+          setMigrationStatus('idle');
+        }
+      };
+
+      const percentage = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+
+      return (
+        <div className="max-w-4xl mx-auto py-12 px-6">
+          <header className="mb-12 text-center">
+            <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500 mb-4">
+              Panel de Migración Inteligente
+            </h1>
+            <p className="text-gray-400">Sincroniza tu catálogo de Tiendanube hacia Mercado Libre en un clic.</p>
+          </header>
+
+          <div className="bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
+            {/* Connections */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+              <div className="bg-gray-750 p-6 rounded-xl border border-gray-600 flex flex-col items-center">
+                <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                   <span className="text-2xl">☁️</span>
+                </div>
+                <h2 className="text-xl font-bold mb-4">Tiendanube</h2>
+                <button 
+                  onClick={() => setTnConnected(true)}
+                  disabled={tnConnected}
+                  id="btn-tiendanube"
+                  className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    tnConnected 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg hover:shadow-blue-500/30'
+                  }`}
+                >
+                  {tnConnected ? '✓ Conectado' : 'Conectar Tiendanube'}
+                </button>
+              </div>
+
+              <div className="bg-gray-750 p-6 rounded-xl border border-gray-600 flex flex-col items-center">
+                <div className="w-16 h-16 bg-yellow-900 rounded-full flex items-center justify-center mb-4 shadow-lg">
+                   <span className="text-2xl">🤝</span>
+                </div>
+                <h2 className="text-xl font-bold mb-4">Mercado Libre</h2>
+                <button 
+                  onClick={() => setMlConnected(true)}
+                  disabled={mlConnected}
+                  id="btn-mercadolibre"
+                  className={`w-full py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    mlConnected 
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/50 cursor-not-allowed' 
+                    : 'bg-yellow-500 hover:bg-yellow-400 text-gray-900 shadow-lg hover:shadow-yellow-500/30'
+                  }`}
+                >
+                  {mlConnected ? '✓ Conectado' : 'Conectar Mercado Libre'}
+                </button>
+              </div>
+            </div>
+
+            {/* Migration Settings */}
+            <div className="mb-10">
+              <h3 className="text-lg font-semibold mb-3">Configuración de Migración</h3>
+              <div className="bg-gray-900 p-4 rounded-lg border border-gray-700">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <span className="text-gray-300">Seleccionar alcance:</span>
+                  <select 
+                    value={mode} 
+                    onChange={e => setMode(e.target.value)}
+                    id="select-mode"
+                    className="bg-gray-800 text-white border border-gray-600 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="all">Todo el Catálogo</option>
+                    <option value="category">Categoría Específica</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {/* Action */}
+            <div className="text-center">
+              <button 
+                id="btn-start"
+                onClick={startMigration}
+                disabled={migrationStatus === 'running'}
+                className={`px-8 py-4 text-xl font-bold rounded-xl transition-all duration-500 shadow-2xl ${
+                  !tnConnected || !mlConnected 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50' 
+                  : migrationStatus === 'running'
+                    ? 'bg-purple-600 cursor-wait animate-pulse-slow'
+                    : 'bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-500 hover:to-pink-400 transform hover:-translate-y-1 hover:shadow-purple-500/50'
+                }`}
+              >
+                {migrationStatus === 'running' ? 'Migración en progreso...' : '🚀 Iniciar Migración Masiva'}
+              </button>
+            </div>
+
+            {/* Progress */}
+            {migrationStatus !== 'idle' && (
+              <div className="mt-10 bg-gray-900 p-6 rounded-xl border border-gray-700">
+                <div className="flex justify-between items-end mb-2">
+                  <span className="text-sm font-medium text-purple-400 uppercase tracking-wider" id="progress-status">
+                    {migrationStatus === 'running' ? 'Migrando...' : '¡Migración Completada!'}
+                  </span>
+                  <span className="text-lg font-bold" id="progress-percentage">{percentage}%</span>
+                </div>
+                
+                <div className="w-full bg-gray-800 rounded-full h-4 mb-4 overflow-hidden shadow-inner">
+                  <div 
+                    id="progress-bar"
+                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-4 rounded-full transition-all duration-500 ease-out relative"
+                    style={{ width: `${percentage}%` }}
+                  >
+                    {migrationStatus === 'running' && (
+                      <div className="absolute top-0 left-0 right-0 bottom-0 bg-white/20 animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+                
+                <p className="text-center text-gray-400 text-sm">
+                  Migrando producto <span className="font-bold text-white" id="progress-current">{progress.current}</span> de <span className="font-bold text-white" id="progress-total">{progress.total}</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
