@@ -8,6 +8,7 @@ export interface MercadoLibreProduct {
   pictures: { source: string }[];
   attributes: any[];
   variations?: MercadoLibreVariation[];
+  family_name?: string;
 }
 
 export interface MercadoLibreVariation {
@@ -79,6 +80,8 @@ export class MercadoLibreMapper {
 
       if (variations && variations.length > 0) {
         mlProduct.variations = variations;
+        // La API de moda/catálogo (ej: MLA1430) exige family_name en la raíz si hay variantes
+        mlProduct.family_name = finalTitle;
       }
 
       return mlProduct;
