@@ -100,7 +100,9 @@ export class MercadoLibreService {
     } catch (error: any) {
       let errorMessage = 'Unknown error';
       if (error.response && error.response.data) {
-         errorMessage = error.response.data.message || JSON.stringify(error.response.data.cause);
+         const msg = error.response.data.message;
+         const cause = error.response.data.cause ? JSON.stringify(error.response.data.cause) : '';
+         errorMessage = `${msg} - Detalles: ${cause}`;
       } else if (error.message) {
          errorMessage = error.message;
       }
