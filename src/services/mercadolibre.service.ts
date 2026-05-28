@@ -18,7 +18,7 @@ export class MercadoLibreService {
   constructor(accessToken: string) {
     this.accessToken = accessToken;
     // Default values for mandatory ML fields (can be parameterized later)
-    this.categoryId = 'MLA1430'; 
+    this.categoryId = 'MLA3530'; // Categoría 'Otros', mucho menos estricta
     this.currencyId = 'ARS';
     this.buyingMode = 'buy_it_now';
     this.condition = 'new';

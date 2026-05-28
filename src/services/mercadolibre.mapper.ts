@@ -8,7 +8,6 @@ export interface MercadoLibreProduct {
   pictures: { source: string }[];
   attributes: any[];
   variations?: MercadoLibreVariation[];
-  family_name?: string;
 }
 
 export interface MercadoLibreVariation {
@@ -67,8 +66,7 @@ export class MercadoLibreMapper {
             price: product.precio,
             available_quantity: v.stock,
             pictures: pictures,
-            attributes: varAttributes,
-            family_name: finalTitle
+            attributes: varAttributes
           };
         });
       }
@@ -82,8 +80,7 @@ export class MercadoLibreMapper {
         pictures: pictures,
         attributes: [
            { id: 'SELLER_SKU', name: 'SKU', value_name: String(product.id_original) }
-        ],
-        family_name: finalTitle
+        ]
       }];
     });
 
